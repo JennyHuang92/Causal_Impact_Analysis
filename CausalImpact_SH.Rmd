@@ -1,0 +1,140 @@
+---
+title: "Causal Impact R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# The easiest way to get dplyr is to install the whole tidyverse:
+#install.packages("tidyverse")
+
+# Alternatively, install just dplyr:
+#install.packages("dplyr")
+
+#install.packages("CausalImpact")
+```
+
+
+## Load Packages 
+```{r}
+library(DBI) #for connect to Oracle databases
+library(dplyr)
+library(MASS)
+library(broom) #for tidy()function
+library(rpart)
+library(tibble)
+library(tidyr)
+library(corrr)
+library(knitr)
+library(CausalImpact)
+
+for(pkg in c("ggplot2", "dplyr")){
+  library(pkg, character.only = TRUE)
+}
+
+```
+
+
+
+# Load Data
+```{r}
+# 1. Query using DBI
+
+df <- read.csv(file = 'CausalExercise.csv') # data file has to be placed in the same directory
+
+#head(df)
+
+# view summary statistics and data
+summary(df)
+str(df)
+View(df)
+
+
+# Count missing values on original data set 
+apply(df, 2, function(x) sum(is.na(x)))
+
+# view data types
+sapply(df, class)
+
+# check datatype 
+class(df)
+
+min(df$Date)
+max(df$Date)
+
+```
+
+
+The detail attributes of the dataset :
+- Date : the time
+- IBCL : Variable interest today (the rate at which banks borrow or lend from each other)
+- US10Year : 10 year yield of the US Government fund (covariates)
+- VIX : (covariates)
+
+The covariates are essentially a variable that sort of co-move in the same way with the IBCL does, but they’re not directly related to the treatment.
+
+
+# Reformat data
+
+```{r}
+# https://rdrr.io/r/base/seq.Date.html#:~:text=seq.Date%20R%20Documentation%20Generate%20Regular%20Sequences%20of%20Dates,to%2C%20by%2C%20length.out%20%3D%20NULL%2C%20along.with%20%3D%20NULL%2C...%29
+
+# Modify the date with “yyyy-mm-dd” format and then declare the time series variables
+time.points <- seq.Date(as.Date("2020-02-27"), by = 1, length.out=44)
+
+ibcl <- ts(df$IBCL)
+u10yr <- ts(df$US10Year)
+vix <- ts(df$VIX)
+
+#Bind the data
+class(time.points)
+data <- zoo(cbind(ibcl, u10yr, vix), time.points)
+head(data)
+```
+#Set pre and the post intervention periods.
+
+The pre period is the period before a certain policy action was implemented.
+The post period is the period after the policy action.
+
+```{r}
+
+pre.period <- as.Date(c("2020-02-27", "2020-03-23"))
+post.period <- as.Date(c("2020-03-24", "2020-04-10"))
+
+```
+
+
+
+# Determine the causalimpact and calculate the impact between the pre-period to the post period
+```{r}
+
+impact <- CausalImpact(data, pre.period, post.period)
+impact
+
+plot(impact)
+
+```
+
+
+
+
+# Summarize results
+```{r}
+summary(impact)
+summary(impact, "report")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
